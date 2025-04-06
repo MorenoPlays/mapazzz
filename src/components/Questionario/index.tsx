@@ -9,6 +9,7 @@ const Questionario = () => {
     const [chuva, setChuva] = useState('');
     const [temperatura, setTemperatura] = useState('');
     const [tempo, setTempo] = useState('');
+    
 
     function handleSubmit (){
         console.log(chuva, temperatura, tempo);

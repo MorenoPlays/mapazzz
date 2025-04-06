@@ -1,22 +1,45 @@
 import { StyleSheet } from "react-native";
 
-export const style = StyleSheet.create({
-    button:
-    {
-        width:200,
-        height: 30,
-        backgroundColor:"transparent",
-        borderRadius: 8,
-        justifyContent: "center",
-        alignItems: "center",
-        margin:5,
-        borderBottomColor:"silver",
-        borderBottomWidth:1,
+export const styles = StyleSheet.create({
+    buttonContainer: {
+      width: 300,
+      height: 68,
+      marginHorizontal: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 3,
     },
-    title:
+  
+    button: {
+      borderRadius: 19,
+      width: '50%',
+      height: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row', 
+      backgroundColor: '#ffff',
+    },
+  
+    buttonIcon: {
+      width: 20, 
+      height: 20, 
+      marginRight: 8, 
+    },
+    
+    buttonLabel: {
+      color: '#fff',
+      fontSize: 16,
+    },
+    
+    text:
     {
-        color:"black",
-        fontSize:14,
-        fontFamily:"arial"
-    }
-});
+        fontSize: 20,
+      fontFamily: 'inter',
+      color: '#238B45',
+    },
+    footerContainer: {
+        flex: 1 / 2,
+        alignItems: 'center',
+      },
+    
+  });
