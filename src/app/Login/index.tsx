@@ -3,6 +3,7 @@ import {View,Text,TextInput,TouchableOpacity,StyleSheet,ImageBackground, Alert }
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -12,6 +13,14 @@ export default function LoginScreen() {
   const [telefone, setTelefone] = useState('');
   const [password, setPassword] = useState('');
 
+  const storeToken = async (token) => {
+    try {
+      await AsyncStorage.setItem('BearerToken', token);
+      console.log('Token armazenado com sucesso');
+    } catch (error) {
+      console.error('Erro ao armazenar o token:', error);
+    }
+  };
   
   const login = async function () {
     setLoading(true);
@@ -31,6 +40,7 @@ export default function LoginScreen() {
           Alert.alert("Error", "Erro ao tentar logar");
       else
       {
+        storeToken(result.token);
         Alert.alert('Sucesso', "Login realizado com sucesso! vai receber o OTP no seu dispositivo");
         router.push("/Otp");
       }
@@ -82,7 +92,7 @@ export default function LoginScreen() {
             <Text style={styles.loginText}>Entrar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('registo')}>
+          <TouchableOpacity onPress={() => router.push("/registo")}>
             <Text style={styles.signupText}>
               Não tenho uma conta? <Text style={styles.signupLink}>Criar conta</Text>
             </Text>

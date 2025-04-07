@@ -63,7 +63,7 @@ export default function VerificationScreen() {
       } else {
         setErrorMessage('');
         Alert.alert('Sucesso', 'OTP verificado com sucesso!');
-        router.push('/camera');
+        router.push('/Mapa');
       }
     }
   };

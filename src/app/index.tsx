@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Alert, Image, Dimensions } from "react-native"
 import { Button } from "../components/Button";
-import CameraComponente from "./imagem";
+import CameraComponente from "./camera";
 import Questionario from "../components/Questionario";
 import { router, useLocalSearchParams } from "expo-router";
 import { Camera } from "expo-camera";
@@ -10,6 +10,7 @@ import Footer from "../components/Footer/Footer";
 import React, { useEffect, useState } from "react";
 import ImageViewer from '../components/ImageViewer';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 
@@ -17,16 +18,37 @@ const PlaceholderImage = require("@/assets/images/background-image.png");
 const DEVICE_ID_KEY = 'device-id';
 
 export default function Index() {
-
+    const [token, setToken] = useState("");
+    const [logado, setLogado] = useState(false);
+    const checkToken = async () => {
+        try {
+          const tokenT = await AsyncStorage.getItem('BearerToken'); // Chave usada para salvar o token
+          if (tokenT) {
+            console.log('Token encontrado:', tokenT);
+            setLogado(true);
+            setToken(tokenT)
+            // Adicione aqui qualquer lógica para quando o token existir
+          } else {
+            console.log('Token não encontrado!');
+            // Redirecione o usuário para login ou exiba uma mensagem de erro
+          }
+        } catch (error) {
+          console.error('Erro ao verificar o token:', error);
+        }
+      };
     const { width, height } = Dimensions.get("window");
     let tam = width;
     let lar = height;
-    const [logado, setLogado] = useState(false);
-
+    
+      useEffect(() => {
+        checkToken();
+      })
+    
     function entrar()
     {
         setLogado(true);
     }
+    
     return (
         <>
             {
@@ -34,7 +56,6 @@ export default function Index() {
                     <View style={{ flex: 1, paddingBottom: lar * 0.1, }}>
                         {/* <Camera_expo/> */}
                         <TelaMapa />
-                        <Footer />
                     </View>
                 </>) : (<>
                     <View style={styles.container}>
@@ -52,6 +73,7 @@ export default function Index() {
             }
 
         </>
+        
     );
 }
 

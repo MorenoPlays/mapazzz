@@ -1,27 +1,83 @@
 import React, { useRef, useState, useEffect } from "react";
-import { View, SafeAreaView, StyleSheet, TouchableOpacity } from "react-native";
-import MapView, { PROVIDER_GOOGLE, MAP_TYPES } from "react-native-maps";
+import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text } from "react-native";
+import MapView, { PROVIDER_GOOGLE, MAP_TYPES, Circle } from "react-native-maps";
 import * as Location from "expo-location";
-import {
-  GestureHandlerRootView,
-  TextInput,
-} from "react-native-gesture-handler";
+import { Ionicons } from "@expo/vector-icons";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { TextInput } from "react-native";
 import { Search, MapPin, Layers } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, Link, usePathname } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
+const screenWidth = Dimensions.get("window").width;
+const screenHeight = Dimensions.get("window").height;
+
+interface FooterItemProps {
+  title: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onPress: () => void;
+}
+
+const FooterItem: React.FC<FooterItemProps> = ({
+  title,
+  icon,
+  isActive,
+  onPress,
+}) => {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.customButton,
+        isActive ? styles.activeButton : styles.inactiveButton,
+      ]}
+      onPress={onPress}
+    >
+      {icon}
+      <Text
+        style={[
+          styles.buttonText,
+
+        ]}
+      >
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function TelaMapa() {
+  const [token, setToken] = useState("");
+  const checkToken = async () => {
+    try {
+      const tokenT = await AsyncStorage.getItem('BearerToken'); // Chave usada para salvar o token
+      if (tokenT) {
+        console.log('Token encontrado:', tokenT);
+        setToken(tokenT)
+        // Adicione aqui qualquer lógica para quando o token existir
+      } else {
+        console.log('Token não encontrado!');
+        // Redirecione o usuário para login ou exiba uma mensagem de erro
+      }
+    } catch (error) {
+      console.error('Erro ao verificar o token:', error);
+    }
+  };
+  const pathname = usePathname();
   const [user, setUser] = useState("");
   const mapRef = useRef<MapView>(null);
   const [viewMap, setViewMap] = useState<any>("standard");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [longitude, setLongitude] = useState(0);
   const [lantitude, setLantitude] = useState(0);
+  const [locations, setLocations] = useState([])
 
-  const zonesInDanger = [
-    { id: "1", name: "Zona Central" },
-    { id: "2", name: "Bairro Industrial" },
-    { id: "3", name: "Região Litorânea" },
-  ];
+  // const zonesInDanger = [
+  //   { id: "1", name: "Zona Central" },
+  //   { id: "2", name: "Bairro Industrial" },
+  //   { id: "3", name: "Região Litorânea" },
+  // ];
 
   useEffect(() => {
     (async () => {
@@ -92,8 +148,39 @@ export default function TelaMapa() {
       console.log(error);
     }
   };
-  handleGetCurrentLocation();
+  const fetchDataAndCreateCircles = async () => {
+    try {
+      const response = await fetch("https://mapazz.serveo.net/buscar_aria_de_risco", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) throw new Error("Erro ao acessar a API.");
+
+      const data = await response.json();
+      console.log(data); // Dados retornados
+      setLocations(data); // Atualiza o estado com os resultados
+    } catch (error) {
+      console.error("Erro na requisição:", error);
+    }
+  };
+  useEffect(() => {
+    const run = async () => {
+      await handleGetCurrentLocation();
+      await checkToken();
+      await fetchDataAndCreateCircles();
+    };
+    run();
+  }, []);
+
+  
+  
+  
+  checkToken();
   return (
+    <>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.mapContainer}>
@@ -128,7 +215,29 @@ export default function TelaMapa() {
               latitudeDelta: 0.003,
               longitudeDelta: 0.003,
             }}
-          />
+          >
+            
+            {Array.isArray(locations) && locations.length > 0 ? (
+  locations.map((location, index) => (
+    <Circle
+      key={index}
+      center={{
+        latitude: parseFloat(location.latitude),
+        longitude: parseFloat(location.longitude),
+      }}
+      radius={100}
+      strokeWidth={2}
+      strokeColor="rgb(100, 240, 6)"
+      fillColor="rgba(255, 0, 0, 0.1)"
+    />
+  ))
+) : (
+  <></> // ou algum tipo de feedback para o usuário
+)}
+            </MapView>
+          
+
+          
 
           <View style={styles.bottomButtonsContainer}>
             <TouchableOpacity
@@ -145,6 +254,55 @@ export default function TelaMapa() {
         </View>
       </SafeAreaView>
     </GestureHandlerRootView>
+    <View style={styles.footer}>
+      <View style={styles.buttonWrapper}>
+        <FooterItem
+          title="MAPA"
+          icon={
+            <Ionicons
+              name={pathname === "/" ? "map" : "map-outline"}
+              size={24}
+              color="black"
+            />
+          }
+          isActive={pathname === "/"}
+          onPress={() => router.push("/")}
+        />
+      </View>
+
+      <TouchableOpacity  onPress={token ? (() => {router.push(`/camera?latitude=${lantitude}&longitude=${longitude}`)}) : () => {router.push("/Login")}}>
+          <Image
+            source={require("../../../assets/images/button_alert.png")}
+            style={{
+              width: Dimensions.get("window").width * 0.2,
+              height: Dimensions.get("window").width * 0.2,
+              top: -Dimensions.get("window").width * 0.1,
+              borderRadius: 100,
+              backgroundColor: "transparent",
+            }}
+          />
+      </TouchableOpacity>
+
+      <View style={styles.buttonWrapper}>
+        <FooterItem
+          title="APRENDER"
+          icon={
+            <Ionicons
+              name={
+                pathname === "/aprender"
+                  ? "game-controller"
+                  : "game-controller-outline"
+              }
+              size={24}
+              color="black"
+            />
+          }
+          isActive={pathname === "/aprender"}
+          onPress={() => router.push("/Aprender/aprender")}
+        />
+      </View>
+    </View>
+    </>
   );
 }
 
@@ -238,5 +396,47 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#BFC8CF",
+  },
+  footer: {
+    position: "absolute",
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.1,
+    bottom: 0,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    elevation: 5,
+    borderTopWidth: 1,
+    borderTopColor: "black",
+    backgroundColor: "white",
+  },
+  buttonWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: Dimensions.get("window").width* 0.25,
+    height: Dimensions.get("window").width * 0.25,
+  },
+  customButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 100,
+    width: Dimensions.get("window").width * 0.15,
+    height: Dimensions.get("window").width * 0.15,
+  },
+  inactiveButton: {
+    backgroundColor: "transparent",
+  },
+  activeButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+  },
+  buttonText: {
+    fontSize: 10,
+    color: "black",
+  },
+  inactiveButtonText: {
+    fontWeight: "normal",
+  },
+  activeButtonText: {
+    fontWeight: "bold",
   },
 });
