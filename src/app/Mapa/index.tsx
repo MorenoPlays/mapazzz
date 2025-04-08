@@ -110,6 +110,19 @@ export default function TelaMapa() {
     }
     setLocalImages(updatedImages);
   };
+  const getDirectImageLink = (googleDriveLink) => {
+    try {
+      const fileId = googleDriveLink.split("/d/")[1]?.split("/")[0];
+      if (!fileId) {
+        console.error("Link inválido do Google Drive:", googleDriveLink);
+        return null;
+      }
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    } catch (error) {
+      console.error("Erro ao processar o link do Google Drive:", error);
+      return null;
+    }
+  };
 
   // const zonesInDanger = [
   //   { id: "1", name: "Zona Central" },
@@ -199,8 +212,7 @@ export default function TelaMapa() {
 
       const data = await response.json();
       console.log(data); // Dados retornados
-      setLocations(data); 
-      await downloadAllImages();// Atualiza o estado com os resultados
+      setLocations(data); // Atualiza o estado com os resultados
     } catch (error) {
       console.error("Erro na requisição:", error);
     }
@@ -210,6 +222,7 @@ export default function TelaMapa() {
       await handleGetCurrentLocation();
       await checkToken();
       await fetchDataAndCreateCircles();
+      // await downloadAllImages();
     };
     run();
   }, []);
@@ -361,7 +374,7 @@ export default function TelaMapa() {
             <View key={location.id} style={styles.panelItem}>
               <Image
                 source={{
-                  uri: localImages[location.id] || location.imagem, // Usa a imagem baixada ou a original
+                  uri: getDirectImageLink(location.imagem), // Converte o link para visualização direta
                 }}
                 style={styles.panelImage}
                 onError={(error) =>
@@ -376,7 +389,7 @@ export default function TelaMapa() {
                   Temperatura muito Alta: {location.temperatura}
                 </Text>
                 <Text style={styles.panelDescription}>
-                  Tempo que a aria em risco: {location.tempo}
+                  Tempo que a área está em risco: {location.tempo}
                 </Text>
                 <Text style={styles.panelDescription}>
                   Local: {location.enderecoFormatado}
