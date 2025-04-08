@@ -42,8 +42,8 @@ const Camera_expo = () => {
 
 
   
-  let lat = parseFloat(latitude[1]);
-  let log = parseFloat(longitude[1]);
+  let lat = latitude ? parseFloat(latitude[1]) : 0;
+  let log = longitude?  parseFloat(longitude[1]) : 0;
     
  
   useEffect(() => {
@@ -163,12 +163,7 @@ const Camera_expo = () => {
   let hal = height;
   return (
     <>
-    {isLoading && (
-  <View style={style.loadingContainer}>
-    <ActivityIndicator size="large" color="#00ff00" />
-    <Text>Enviando resposta...</Text>
-  </View>
-)}
+    
 
       {fotada ? (
         <View style={{ width:lar, height:hal, flex: 1 }}>
@@ -224,7 +219,7 @@ const Camera_expo = () => {
     if (fileId) {
       await registar_aria_de_risco(fileId, chuva, temperatura, tempo, local);
     } else {
-      Alert.alert("❌ Erro", "Não foi possível enviar a imagem.");
+      Alert.alert("Erro", "Não foi possível enviar a imagem.");
     }
     setIsLoading(false); // Desativa o progress bar
   }}
@@ -239,6 +234,12 @@ const Camera_expo = () => {
           </CameraView>
         </SafeAreaView>
       )}
+      {isLoading && (
+  <View style={style.loadingContainer}>
+    <ActivityIndicator  size="300" color="#FFF00" />
+    <Text>Enviando resposta...</Text>
+  </View>
+)}
     </>
   );
 };
@@ -258,10 +259,12 @@ export const style = StyleSheet.create({
   },
   loadingContainer: {
     position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: [{ translateX: -50 }, { translateY: -50 }],
+    width:Dimensions.get("window").width,
+    height:Dimensions.get("window").height,
     alignItems: "center",
+    justifyContent:"center",
+    backgroundColor:"rgba(0, 0, 0, 0.52)"
+    
   },
   painel:
   {

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text } from "react-native";
+import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text, ScrollView, Modal } from "react-native";
 import MapView, { PROVIDER_GOOGLE, MAP_TYPES, Circle } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { TextInput } from "react-native";
 import { Search, MapPin, Layers } from "lucide-react-native";
 import { router, Link, usePathname } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from "expo-file-system";
 
 
 const screenWidth = Dimensions.get("window").width;
@@ -71,7 +72,44 @@ export default function TelaMapa() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [longitude, setLongitude] = useState(0);
   const [lantitude, setLantitude] = useState(0);
-  const [locations, setLocations] = useState([])
+  const [locations, setLocations] = useState([]);
+  const [localImages, setLocalImages] = useState({});
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const toggleModal = () => {
+    setIsModalVisible(!isModalVisible);
+  };
+
+  const getDownloadableLink = (googleDriveLink) => {
+    const fileId = googleDriveLink.split("/d/")[1]?.split("/")[0];
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  };
+
+  const downloadImage = async (imageUrl, id) => {
+    try {
+      const downloadableLink = getDownloadableLink(imageUrl);
+      const fileUri = `${FileSystem.documentDirectory}${id}.jpg`;
+
+      const { uri } = await FileSystem.downloadAsync(downloadableLink, fileUri);
+      return uri;
+    } catch (error) {
+      console.error("Erro ao baixar a imagem:", error);
+      return null;
+    }
+  };
+
+  const downloadAllImages = async () => {
+    const updatedImages = {};
+    for (const location of locations) {
+      if (location.imagem) {
+        const localUri = await downloadImage(location.imagem, location.id);
+        if (localUri) {
+          updatedImages[location.id] = localUri;
+        }
+      }
+    }
+    setLocalImages(updatedImages);
+  };
 
   // const zonesInDanger = [
   //   { id: "1", name: "Zona Central" },
@@ -161,7 +199,8 @@ export default function TelaMapa() {
 
       const data = await response.json();
       console.log(data); // Dados retornados
-      setLocations(data); // Atualiza o estado com os resultados
+      setLocations(data); 
+      await downloadAllImages();// Atualiza o estado com os resultados
     } catch (error) {
       console.error("Erro na requisição:", error);
     }
@@ -235,7 +274,12 @@ export default function TelaMapa() {
   <></> // ou algum tipo de feedback para o usuário
 )}
             </MapView>
-          
+            <TouchableOpacity
+              style={styles.openPanelButton}
+              onPress={toggleModal}
+            >
+              <Text style={styles.openPanelButtonText}>Arias de Risco Recentes</Text>
+            </TouchableOpacity>
 
           
 
@@ -302,6 +346,54 @@ export default function TelaMapa() {
         />
       </View>
     </View>
+    <Modal
+  animationType="slide"
+  transparent={true}
+  visible={isModalVisible}
+  onRequestClose={toggleModal}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.modalContent}>
+      <Text style={styles.modalTitle}>Painel de Informações</Text>
+      <ScrollView>
+        {Array.isArray(locations) && locations.length > 0 ? (
+          locations.map((location) => (
+            <View key={location.id} style={styles.panelItem}>
+              <Image
+                source={{
+                  uri: localImages[location.id] || location.imagem, // Usa a imagem baixada ou a original
+                }}
+                style={styles.panelImage}
+                onError={(error) =>
+                  console.error("Erro ao carregar imagem:", error.nativeEvent.error)
+                }
+              />
+              <View style={styles.panelTextContainer}>
+                <Text style={styles.panelDescription}>
+                  Chuvas frequentes: {location.chuva}
+                </Text>
+                <Text style={styles.panelDescription}>
+                  Temperatura muito Alta: {location.temperatura}
+                </Text>
+                <Text style={styles.panelDescription}>
+                  Tempo que a aria em risco: {location.tempo}
+                </Text>
+                <Text style={styles.panelDescription}>
+                  Local: {location.enderecoFormatado}
+                </Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Text>Nenhuma informação disponível.</Text>
+        )}
+      </ScrollView>
+      <TouchableOpacity style={styles.closeButton} onPress={toggleModal}>
+        <Text style={styles.closeButtonText}>Fechar</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
     </>
   );
 }
@@ -438,5 +530,86 @@ const styles = StyleSheet.create({
   },
   activeButtonText: {
     fontWeight: "bold",
+  },
+  openPanelButton: {
+    position: "absolute",
+    top: 100,
+    right: 16,
+    backgroundColor: "#158ADD",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    elevation: 5,
+  },
+  openPanelButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: screenWidth * 0.9,
+    height: screenHeight * 0.7,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    alignItems: "center",
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  panelItem: {
+    flexDirection: "column", // Alinha os itens verticalmente
+    alignItems: "center",
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+    paddingBottom: 8,
+  },
+  panelImage: {
+    width: screenWidth * 0.9,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10, // Espaço entre a imagem e o texto
+  },
+  panelTextContainer: {
+    alignItems: "flex-start", // Alinha o texto à esquerda
+    width: "100%",
+    paddingHorizontal: 10,
+    backgroundColor:"rgba(0, 0, 0, 0.3)",
+    borderRadius: 10,
+  },
+  panelDescription: {
+    fontSize: 14,
+    color: "black",
+    marginBottom: 5, // Espaço entre as linhas de texto
+  },
+  panelTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  panelDescription: {
+    fontSize: 14,
+    color: "white",
+  },
+  closeButton: {
+    backgroundColor: "#158ADD",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  closeButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
   },
 });
