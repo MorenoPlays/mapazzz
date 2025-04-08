@@ -279,7 +279,7 @@ export default function TelaMapa() {
       }}
       radius={100}
       strokeWidth={2}
-      strokeColor="rgb(100, 240, 6)"
+      strokeColor="rgb(240, 6, 6)"
       fillColor="rgba(255, 0, 0, 0.1)"
     />
   ))
@@ -291,7 +291,7 @@ export default function TelaMapa() {
               style={styles.openPanelButton}
               onPress={toggleModal}
             >
-              <Text style={styles.openPanelButtonText}>Arias de Risco Recentes</Text>
+              <Text style={styles.openPanelButtonText}>Areas de Risco Recentes</Text>
             </TouchableOpacity>
 
           

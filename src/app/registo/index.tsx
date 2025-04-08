@@ -20,7 +20,7 @@ const [password, setPassword] = useState("");
 const cadastro = async function () {
   try
   {
-    const result = await fetch("https://api-mapazzz.onrender.com/cadastro", {
+    const result = await fetch("https://mapazz.serveo.net/cadastro", {
       method:"POST",
       headers:{
         'Content-Type':'application/json',
