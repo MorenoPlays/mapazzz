@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text, ScrollView, Modal } from "react-native";
-import MapView, { PROVIDER_GOOGLE, MAP_TYPES, Circle } from "react-native-maps";
+import MapView, { MAP_TYPES, Circle } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -257,7 +257,6 @@ export default function TelaMapa() {
           <MapView
             ref={mapRef}
             style={styles.map}
-            provider={PROVIDER_GOOGLE}
             mapType={viewMap}
             showsUserLocation={true}
             showsMyLocationButton={false}
