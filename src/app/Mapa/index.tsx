@@ -201,7 +201,7 @@ export default function TelaMapa() {
   };
   const fetchDataAndCreateCircles = async () => {
     try {
-      const response = await fetch("https://mapazz.serveo.net/buscar_aria_de_risco", {
+      const response = await fetch("https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/buscar_aria_de_risco", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -227,7 +227,16 @@ export default function TelaMapa() {
     run();
   }, []);
 
-  
+  async function  logout()
+  {
+   try {
+     await AsyncStorage.removeItem("BearerToken");
+     console.log("Token removido com sucesso!");
+     router.push("/Login"); // ou qualquer rota que deseje redirecionar
+   } catch (error) {
+     console.error("Erro ao remover o token:", error);
+   }
+  }
   
   
   checkToken();
@@ -291,6 +300,13 @@ export default function TelaMapa() {
               onPress={toggleModal}
             >
               <Text style={styles.openPanelButtonText}>Areas de Risco Recentes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.openPanelButton1}
+              onPress={logout}
+            >
+              <Text style={styles.openPanelButtonText}>Logout</Text>
             </TouchableOpacity>
 
           
@@ -546,6 +562,16 @@ const styles = StyleSheet.create({
   openPanelButton: {
     position: "absolute",
     top: 100,
+    right: 16,
+    backgroundColor: "#158ADD",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    elevation: 5,
+  },
+  openPanelButton1: {
+    position: "absolute",
+    top: 150,
     right: 16,
     backgroundColor: "#158ADD",
     paddingVertical: 10,

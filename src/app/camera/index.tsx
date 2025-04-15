@@ -23,7 +23,7 @@ import { useSearchParams } from "expo-router/build/hooks";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // URL do seu servidor
-const API_URL = 'https://mapazz.serveo.net/upload';  // Substitua pelo seu URL de produção
+const API_URL = 'https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/upload';  // Substitua pelo seu URL de produção
 
 const Camera_expo = () => {
   const [facing, setFacing] = useState<CameraType>("back");
@@ -117,7 +117,7 @@ const Camera_expo = () => {
         type: "image/jpeg", // Tipo MIME do arquivo
       });
 
-      const response = await fetch("https://mapazz.serveo.net/upload", {
+      const response = await fetch("https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/upload", {
         method: "POST",
         body: formData,
         headers: {
@@ -126,7 +126,7 @@ const Camera_expo = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        throw new Error(`Erro HTTP: ${response.json}`);
       }
 
       const data = await response.json();
@@ -142,7 +142,7 @@ const Camera_expo = () => {
   async function registar_aria_de_risco(imagem: String, chuva: String, temperatura: String, tempo: String, enderecoFormatado: String) {
     const token = await getToken();
     console.log(enderecoFormatado);
-    const response = await fetch("https://mapazz.serveo.net/postar_aria", {
+    const response = await fetch("https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/postar_aria", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`, // Adiciona o token no cabeçalho
