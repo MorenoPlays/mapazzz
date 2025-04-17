@@ -9,7 +9,6 @@ import { Search, MapPin, Layers } from "lucide-react-native";
 import { router, Link, usePathname } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from "expo-file-system";
-import { json } from "stream/consumers";
 
 
 const screenWidth = Dimensions.get("window").width;
@@ -80,6 +79,7 @@ export default function TelaMapa() {
   const [localImages, setLocalImages] = useState({});
   const [isModalVisible, setIsModalVisible] = useState(false);
 
+  
   const toggleModal = () => {
     setIsModalVisible(!isModalVisible);
   };
@@ -203,20 +203,71 @@ export default function TelaMapa() {
       console.log(error);
     }
   };
-  const fetchDataAndCreateCircles = async () => {
+  async function handleConfirmarRisco(ariaDeRisco: string) {
     try {
-      const response = await fetch("https://a3777d514bb1e0cdb5361f47e194cf87.serveo.net/buscar_aria_de_risco", {
-        method: "GET",
+      const res = await fetch("https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/analisar_aria", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ ariaDeRisco }),
       });
-
+  
+      // Aguarda a resolução da Promise e obtém os dados da resposta
+      const data = await res.json();
+      if(!res.ok)
+        Alert.alert("ja interagiu com essa aria de Risco");
+      console.log(data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  const fetchConfirmationCount = async (ariaDeRiscoId: string) => {
+    try {
+      const response = await fetch(
+        `https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/buscar_analise_total?ariaDeRisco=${ariaDeRiscoId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
       if (!response.ok) throw new Error("Erro ao acessar a API.");
-
+      
       const data = await response.json();
-      console.log(data); // Dados retornados
-      setLocations(data); // Atualiza o estado com os resultados
+      return data.confirmationCount;
+    } catch (error) {
+      console.error("Erro na requisição:", error);
+      return 0; // Se algo der errado, assume 0 confirmações
+    }
+  };
+  
+  const fetchDataAndCreateCircles = async () => {
+    try {
+      const response = await fetch(
+        "https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/buscar_aria_de_risco",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+  
+      if (!response.ok) throw new Error("Erro ao acessar a API.");
+  
+      const data = await response.json();
+      // Para cada área de risco, buscamos o número de confirmações
+      const updatedLocations = await Promise.all(
+        data.map(async (location) => {
+          const confirmationCount = await fetchConfirmationCount(location.id);
+          return { ...location, confirmationCount };
+        })
+      );
+  
+      setLocations(updatedLocations); // Atualiza o estado com os resultados
     } catch (error) {
       console.error("Erro na requisição:", error);
     }
@@ -242,16 +293,7 @@ export default function TelaMapa() {
    }
   }
   
-  async function handleConfirmarRisco(id:number)
-  {
-    const res = await fetch("https://a3777d514bb1e0cdb5361f47e194cf87.serveo.net/analisar_aria",
-      {method:"POST",
-        headers:{"Content-Type": "application/json", Authorization: `Bearer ${token}`},
-        body:json.stringify()
-      }
-     )
-    Alert.alert("confirmado", id.toString());
-  }
+ 
   checkToken();
   return (
     <>
@@ -291,20 +333,32 @@ export default function TelaMapa() {
           >
             
             {Array.isArray(locations) && locations.length > 0 ? (
-  locations.map((location, index) => (
-    <Circle
-      key={index}
-      center={{
-        latitude: parseFloat(location.latitude),
-        longitude: parseFloat(location.longitude),
-      }}
-      radius={100}
-      strokeWidth={2}
-      strokeColor="rgb(240, 6, 6)"
-      fillColor="rgba(255, 0, 0, 0.1)"
-    />
-  ))
-) : (
+    locations.map((location, index) => {
+      // Definir a cor com base no número de confirmações
+      let circleColor = "rgba(255, 0, 0, 0.1)"; // Cor padrão (vermelha clara)
+      if (location.confirmationCount > 10) {
+        circleColor = "rgba(255, 0, 0, 0.7)"; // Alta confirmação (vermelho forte)
+      } else if (location.confirmationCount > 5) {
+        circleColor = "rgba(255, 165, 0, 0.5)"; // Média confirmação (laranja)
+      } else if (location.confirmationCount > 0) {
+        circleColor = "rgba(0, 255, 0, 0.3)"; // Baixa confirmação (verde claro)
+      }
+
+      return (
+        <Circle
+          key={index}
+          center={{
+            latitude: parseFloat(location.latitude),
+            longitude: parseFloat(location.longitude),
+          }}
+          radius={100}
+          strokeWidth={2}
+          strokeColor="rgb(240, 6, 6)"
+          fillColor={circleColor}
+        />
+      );
+    })
+  ) : (
   <></> // ou algum tipo de feedback para o usuário
 )}
             </MapView>
@@ -451,6 +505,12 @@ export default function TelaMapa() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  confirmButton:
+  {
+    backgroundColor:"green",
+    padding:5,
+    borderRadius:5
   },
   mapContainer: {
     flex: 1,
