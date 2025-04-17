@@ -27,7 +27,7 @@ export default function LoginScreen() {
     setError(null);
     try
     {
-      const response = await fetch("https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/login", {
+      const response = await fetch("https://a3777d514bb1e0cdb5361f47e194cf87.serveo.net/login", {
         method:"POST",
         headers:{
           'Content-Type':'application/json',

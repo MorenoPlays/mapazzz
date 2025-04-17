@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text, ScrollView, Modal } from "react-native";
+import { View, SafeAreaView, StyleSheet, TouchableOpacity, Dimensions, Image, Text, ScrollView, Modal, Alert } from "react-native";
 import MapView, { MAP_TYPES, Circle } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { Search, MapPin, Layers } from "lucide-react-native";
 import { router, Link, usePathname } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from "expo-file-system";
+import { json } from "stream/consumers";
 
 
 const screenWidth = Dimensions.get("window").width;
@@ -47,8 +48,9 @@ const FooterItem: React.FC<FooterItemProps> = ({
     </TouchableOpacity>
   );
 };
-
+let logado = false;
 export default function TelaMapa() {
+  
   const [token, setToken] = useState("");
   const checkToken = async () => {
     try {
@@ -56,9 +58,11 @@ export default function TelaMapa() {
       if (tokenT) {
         console.log('Token encontrado:', tokenT);
         setToken(tokenT)
+        logado = true;
         // Adicione aqui qualquer lógica para quando o token existir
       } else {
         console.log('Token não encontrado!');
+        logado = false;
         // Redirecione o usuário para login ou exiba uma mensagem de erro
       }
     } catch (error) {
@@ -201,7 +205,7 @@ export default function TelaMapa() {
   };
   const fetchDataAndCreateCircles = async () => {
     try {
-      const response = await fetch("https://41973ac992953837e0ae8c0585b9fd1e.serveo.net/buscar_aria_de_risco", {
+      const response = await fetch("https://a3777d514bb1e0cdb5361f47e194cf87.serveo.net/buscar_aria_de_risco", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -238,7 +242,16 @@ export default function TelaMapa() {
    }
   }
   
-  
+  async function handleConfirmarRisco(id:number)
+  {
+    const res = await fetch("https://a3777d514bb1e0cdb5361f47e194cf87.serveo.net/analisar_aria",
+      {method:"POST",
+        headers:{"Content-Type": "application/json", Authorization: `Bearer ${token}`},
+        body:json.stringify()
+      }
+     )
+    Alert.alert("confirmado", id.toString());
+  }
   checkToken();
   return (
     <>
@@ -302,12 +315,13 @@ export default function TelaMapa() {
               <Text style={styles.openPanelButtonText}>Areas de Risco Recentes</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {logado ? (<><TouchableOpacity
               style={styles.openPanelButton1}
               onPress={logout}
             >
               <Text style={styles.openPanelButtonText}>Logout</Text>
-            </TouchableOpacity>
+            </TouchableOpacity></>):(<></>)}
+            
 
           
 
@@ -384,38 +398,46 @@ export default function TelaMapa() {
     <View style={styles.modalContent}>
       <Text style={styles.modalTitle}>Painel de Informações</Text>
       <ScrollView>
-        {Array.isArray(locations) && locations.length > 0 ? (
-          locations.map((location) => (
-            <View key={location.id} style={styles.panelItem}>
-              <Image
-                source={{
-                  uri: getDirectImageLink(location.imagem), // Converte o link para visualização direta
-                }}
-                style={styles.panelImage}
-                onError={(error) =>
-                  console.error("Erro ao carregar imagem:", error.nativeEvent.error)
-                }
-              />
-              <View style={styles.panelTextContainer}>
-                <Text style={styles.panelDescription}>
-                  Chuvas frequentes: {location.chuva}
-                </Text>
-                <Text style={styles.panelDescription}>
-                  Temperatura muito Alta: {location.temperatura}
-                </Text>
-                <Text style={styles.panelDescription}>
-                  Tempo que a área está em risco: {location.tempo}
-                </Text>
-                <Text style={styles.panelDescription}>
-                  Local: {location.enderecoFormatado}
-                </Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <Text>Nenhuma informação disponível.</Text>
-        )}
-      </ScrollView>
+  {Array.isArray(locations) && locations.length > 0 ? (
+    locations.map((location) => (
+      <View key={location.id} style={styles.panelItem}>
+        <Image
+          source={{
+            uri: getDirectImageLink(location.imagem),
+          }}
+          style={styles.panelImage}
+          onError={(error) =>
+            console.error("Erro ao carregar imagem:", error.nativeEvent.error)
+          }
+        />
+        <View style={styles.panelTextContainer}>
+          <Text style={styles.panelDescription}>
+            Chuvas frequentes: {location.chuva}
+          </Text>
+          <Text style={styles.panelDescription}>
+            Temperatura muito Alta: {location.temperatura}
+          </Text>
+          <Text style={styles.panelDescription}>
+            Tempo que a área está em risco: {location.tempo}
+          </Text>
+          <Text style={styles.panelDescription}>
+            Local: {location.enderecoFormatado}
+          </Text>
+
+          {/* Botão de confirmação */}
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={() => handleConfirmarRisco(location.id)}
+          >
+            <Text style={styles.confirmButtonText}>Confirmar que é uma área de risco</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ))
+  ) : (
+    <Text>Nenhuma informação disponível.</Text>
+  )}
+</ScrollView>
       <TouchableOpacity style={styles.closeButton} onPress={toggleModal}>
         <Text style={styles.closeButtonText}>Fechar</Text>
       </TouchableOpacity>
