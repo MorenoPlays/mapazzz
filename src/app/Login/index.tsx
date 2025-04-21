@@ -97,6 +97,11 @@ export default function LoginScreen() {
               Não tenho uma conta? <Text style={styles.signupLink}>Criar conta</Text>
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/administrador")}>
+            <Text style={styles.signupText}>
+              administrador? <Text style={styles.signupLink}>Entrar como adm</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
