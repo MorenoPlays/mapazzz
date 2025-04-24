@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,142 +9,193 @@ import {
   Alert,
   ActivityIndicator,
   FlatList,
-  Modal
+  Modal,
+  Image,
+  Dimensions
 } from 'react-native';
 import { Search, Filter, Eye, CheckCircle, AlertTriangle, Clock, X } from 'react-native-feather';
 import { Picker } from '@react-native-picker/picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const screenWidth = Dimensions.get("window").width;
+const screenHeight = Dimensions.get("window").height;
 
 export default function AuthoritiesScreen() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  const [loginData, setLoginData] = useState({
-    email: '',
-    password: '',
-  });
-  
-  const [zones, setZones] = useState([
-    { 
-      id: 1, 
-      name: 'Bairro Morro Bento',
-      address: 'Rua 21, Zona Sul',
-      cases: 45,
-      status: 'Risco Alto',
-      lastUpdated: '15/01/2025',
-      inspected: true,
-      description: 'Área com água parada após chuvas recentes. Vários casos reportados nas últimas semanas. População precisa de orientação sobre medidas preventivas.'
-    },
-    { 
-      id: 2, 
-      name: 'Bairro Nova Vida',
-      address: 'Próximo ao mercado',
-      cases: 32,
-      status: 'Em Observação',
-      lastUpdated: '14/01/2025',
-      inspected: true,
-      description: 'Área com casos crescentes. Já foi realizada inspeção e recomenda-se monitoramento contínuo. População está sendo orientada sobre medidas preventivas.'
-    },
-    { 
-      id: 3, 
-      name: 'Golfe 2',
-      address: 'Avenida Principal',
-      cases: 18,
-      status: 'Resolvido',
-      lastUpdated: '10/01/2025',
-      inspected: true,
-      description: 'Área estava com surto controlado após pulverização e drenagem de águas paradas. Recomenda-se monitoramento periódico para evitar novos focos.'
-    },
-    { 
-      id: 4, 
-      name: 'Talatona',
-      address: 'Próximo ao centro comercial',
-      cases: 7,
-      status: 'Baixo Risco',
-      lastUpdated: '12/01/2025',
-      inspected: false,
-      description: 'Poucos casos reportados, mas é necessário inspeção para avaliar condições da área. Não há informações sobre possíveis focos de mosquitos.'
-    },
-    { 
-      id: 5, 
-      name: 'Benfica',
-      address: 'Zona residencial',
-      cases: 24,
-      status: 'Não Avaliado',
-      lastUpdated: '08/01/2025',
-      inspected: false,
-      description: 'Zona com casos reportados recentemente. Precisa de inspeção urgente para avaliação das condições e possíveis focos de mosquitos.'
-    },
-  ]);
-  
+  const [telefone, setTelefone] = useState('');
+  const [password, setPassword] = useState('');
+  const [token, setToken] = useState('');
+  const [locations, setLocations] = useState([]);
   const [selectedZone, setSelectedZone] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [updateStatus, setUpdateStatus] = useState('');
   const [updateNotes, setUpdateNotes] = useState('');
-  
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const handleLogin = () => {
-    if (!loginData.email || !loginData.password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
-      return;
+
+  // Verificar token no AsyncStorage
+  const checkToken = async () => {
+    try {
+      const storedToken = await AsyncStorage.getItem('BearerToken');
+      if (storedToken) {
+        setToken(storedToken);
+        console.log('Token encontrado:', storedToken);
+      } else {
+        console.log('Token não encontrado!');
+        setIsLoggedIn(false);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar o token:', error);
     }
-    
-    setIsLoading(true);
-    
-    // Simulação de login
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsLoggedIn(true);
-    }, 1500);
   };
-  
+
+  // Armazenar token no AsyncStorage
+  const storeToken = async (token) => {
+    try {
+      await AsyncStorage.setItem('BearerToken', token);
+      setToken(token);
+      console.log('Token armazenado com sucesso');
+    } catch (error) {
+      console.error('Erro ao armazenar o token:', error);
+    }
+  };
+
+  // Função de login
+  const login = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("https://api-mapazzz.onrender.com/login_as", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ telefone, password })
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setIsLoading(false);
+        Alert.alert("Erro", result.message || "Erro ao tentar logar");
+      } else {
+        await storeToken(result.token);
+        setIsLoading(false);
+        setIsLoggedIn(true);
+        fetchDataAndCreateCircles(); // Carregar zonas após login
+      }
+    } catch (error) {
+      setIsLoading(false);
+      Alert.alert("Erro", error.message);
+    }
+  };
+
+  // Buscar contagem de confirmações para uma área de risco
+  const fetchConfirmationCount = async (ariaDeRiscoId) => {
+    try {
+      const response = await fetch(
+        `https://api-mapazzz.onrender.com/buscar_analise_total?ariaDeRisco=${ariaDeRiscoId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!response.ok) throw new Error("Erro ao acessar a API.");
+      const data = await response.json();
+      return data.confirmationCount;
+    } catch (error) {
+      console.error("Erro na requisição:", error);
+      return 0;
+    }
+  };
+
+  // Buscar zonas de risco validadas
+  const fetchDataAndCreateCircles = async () => {
+    try {
+      const response = await fetch(
+        "https://api-mapazzz.onrender.com/buscar_aria_de_risco",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!response.ok) throw new Error("Erro ao acessar a API.");
+      const data = await response.json();
+      const updatedLocations = await Promise.all(
+        data.map(async (location) => {
+          const confirmationCount = await fetchConfirmationCount(location.id);
+          return { ...location, confirmationCount };
+        })
+      );
+      setLocations(updatedLocations);
+    } catch (error) {
+      console.error("Erro na requisição:", error);
+    }
+  };
+
+  // Validar área de risco
+  const handleConfirmarRisco = async (ariaDeRisco) => {
+    try {
+      const res = await fetch("https://api-mapazzz.onrender.com/aprovar_aria", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ariaDeRisco }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        Alert.alert("Erro", "Já interagiu com essa área de risco ou erro na validação");
+      } else {
+        Alert.alert("Sucesso", "Área de risco validada com sucesso!");
+        fetchDataAndCreateCircles(); // Atualizar lista após validação
+      }
+    } catch (error) {
+      console.error("Erro na validação:", error);
+      Alert.alert("Erro", "Falha ao validar a área de risco");
+    }
+  };
+
+  // Atualizar status da zona
   const handleUpdateStatus = () => {
     if (!updateStatus) {
       Alert.alert('Erro', 'Por favor, selecione um status');
       return;
     }
-    
     setIsLoading(true);
-    
-    // Simulação de atualização
     setTimeout(() => {
-      setIsLoading(false);
-      
-      const updatedZones = zones.map(zone => {
-        if (zone.id === selectedZone.id) {
+      const updatedLocations = locations.map(loc => {
+        if (loc.id === selectedZone.id) {
           return {
-            ...zone,
+            ...loc,
             status: updateStatus,
             inspected: true,
-            description: updateNotes || zone.description
+            description: updateNotes || loc.description
           };
         }
-        return zone;
+        return loc;
       });
-      
-      setZones(updatedZones);
+      setLocations(updatedLocations);
       setModalVisible(false);
       setUpdateStatus('');
       setUpdateNotes('');
-      
+      setIsLoading(false);
       Alert.alert('Sucesso', 'Status da zona atualizado com sucesso!');
     }, 1500);
   };
-  
-  const filteredZones = zones.filter(zone => {
-    // Filtro por status
+
+  // Filtrar zonas
+  const filteredZones = locations.filter(zone => {
     const statusMatch = filterStatus === 'Todos' || zone.status === filterStatus;
-    
-    // Filtro por pesquisa
-    const searchMatch = zone.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       zone.address.toLowerCase().includes(searchQuery.toLowerCase());
-    
+    const searchMatch = zone.enderecoFormatado?.toLowerCase().includes(searchQuery.toLowerCase());
     return statusMatch && searchMatch;
   });
-  
+
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'Risco Alto': return '#e53935';
       case 'Em Observação': return '#fb8c00';
       case 'Resolvido': return '#43a047';
@@ -153,9 +204,22 @@ export default function AuthoritiesScreen() {
       default: return '#666';
     }
   };
-  
+  const getDirectImageLink = (googleDriveLink) => {
+    try {
+      const fileId = googleDriveLink.split("/d/")[1]?.split("/")[0];
+      if (!fileId) {
+        console.error("Link inválido do Google Drive:", googleDriveLink);
+        return null;
+      }
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    } catch (error) {
+      console.error("Erro ao processar o link do Google Drive:", error);
+      return null;
+    }
+  };
+
   const getStatusIcon = (status) => {
-    switch(status) {
+    switch (status) {
       case 'Risco Alto': return <AlertTriangle width={16} height={16} stroke="#fff" />;
       case 'Em Observação': return <Clock width={16} height={16} stroke="#fff" />;
       case 'Resolvido': return <CheckCircle width={16} height={16} stroke="#fff" />;
@@ -164,7 +228,14 @@ export default function AuthoritiesScreen() {
       default: return null;
     }
   };
-  
+
+  useEffect(() => {
+    checkToken();
+    if (isLoggedIn) {
+      fetchDataAndCreateCircles();
+    }
+  }, [isLoggedIn]);
+
   if (!isLoggedIn) {
     return (
       <ScrollView style={styles.container}>
@@ -172,39 +243,34 @@ export default function AuthoritiesScreen() {
           <AlertTriangle width={24} height={24} stroke="#e53935" />
           <Text style={styles.headerTitle}>Portal da Autoridade Sanitária</Text>
         </View>
-        
         <View style={styles.formContainer}>
           <Text style={styles.formTitle}>Login</Text>
           <Text style={styles.formSubtitle}>
             Acesse para gerenciar e classificar zonas de risco de malária
           </Text>
-          
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail</Text>
+            <Text style={styles.label}>Telefone</Text>
             <TextInput
               style={styles.input}
-              placeholder="seu@email.gov.ao"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={loginData.email}
-              onChangeText={(text) => setLoginData({...loginData, email: text})}
+              placeholder="Digite seu telefone"
+              keyboardType="phone-pad"
+              value={telefone}
+              onChangeText={setTelefone}
             />
           </View>
-          
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Senha</Text>
             <TextInput
               style={styles.input}
               placeholder="Sua senha"
               secureTextEntry
-              value={loginData.password}
-              onChangeText={(text) => setLoginData({...loginData, password: text})}
+              value={password}
+              onChangeText={setPassword}
             />
           </View>
-          
           <TouchableOpacity 
             style={styles.submitButton} 
-            onPress={handleLogin}
+            onPress={login}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -213,22 +279,20 @@ export default function AuthoritiesScreen() {
               <Text style={styles.submitButtonText}>Entrar</Text>
             )}
           </TouchableOpacity>
-          
           <Text style={styles.noteText}>
-            * Apenas funcionários autorizados da Autoridade Sanitária têm acesso a esta área.
+            * Apenas funcionários autorizados da Autoridade Sanitária têm acesso.
           </Text>
         </View>
       </ScrollView>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <AlertTriangle width={24} height={24} stroke="#e53935" />
         <Text style={styles.headerTitle}>Gestão de Zonas de Risco</Text>
       </View>
-      
       <View style={styles.filterSection}>
         <View style={styles.searchContainer}>
           <Search width={20} height={20} stroke="#666" style={styles.searchIcon} />
@@ -239,7 +303,6 @@ export default function AuthoritiesScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
-        
         <View style={styles.filterContainer}>
           <Filter width={20} height={20} stroke="#666" style={styles.filterIcon} />
           <View style={styles.pickerContainer}>
@@ -258,7 +321,6 @@ export default function AuthoritiesScreen() {
           </View>
         </View>
       </View>
-      
       <FlatList
         data={filteredZones}
         keyExtractor={(item) => item.id.toString()}
@@ -268,45 +330,39 @@ export default function AuthoritiesScreen() {
             onPress={() => {
               setSelectedZone(item);
               setModalVisible(true);
-              setUpdateStatus(item.status);
-              setUpdateNotes(item.description);
+              setUpdateStatus(item.aprovado || 'Não Avaliado');
+              setUpdateNotes(item.description || '');
             }}
           >
             <View style={styles.zoneHeader}>
-              <Text style={styles.zoneName}>{item.name}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                {getStatusIcon(item.status)}
-                <Text style={styles.statusText}>{item.status}</Text>
+              <Text style={styles.zoneName}>{item.enderecoFormatado}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status || 'Não Avaliado') }]}>
+                {getStatusIcon(item.aprovado || 'Não Avaliado')}
+                <Text style={styles.statusText}>{item.status || 'Não Avaliado'}</Text>
               </View>
             </View>
-            
-            <Text style={styles.zoneAddress}>{item.address}</Text>
-            
+            <Text style={styles.zoneAddress}>Lat: {item.latitude}, Long: {item.longitude}</Text>
             <View style={styles.zoneInfo}>
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Casos:</Text>
-                <Text style={styles.infoValue}>{item.cases}</Text>
+                <Text style={styles.infoLabel}>Confirmações:</Text>
+                <Text style={styles.infoValue}>{item.confirmationCount}</Text>
               </View>
-              
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Atualizado:</Text>
-                <Text style={styles.infoValue}>{item.lastUpdated}</Text>
+                <Text style={styles.infoLabel}>Chuva:</Text>
+                <Text style={styles.infoValue}>{item.chuva}</Text>
               </View>
-              
               <View style={styles.infoItem}>
-                <Text style={styles.infoLabel}>Inspecionado:</Text>
-                <Text style={styles.infoValue}>{item.inspected ? 'Sim' : 'Não'}</Text>
+                <Text style={styles.infoLabel}>Temperatura:</Text>
+                <Text style={styles.infoValue}>{item.temperatura}</Text>
               </View>
             </View>
-            
             <Text numberOfLines={2} style={styles.zoneDescription}>
-              {item.description}
+              {item.description || 'Sem descrição disponível'}
             </Text>
           </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContainer}
       />
-      
       <Modal
         animationType="slide"
         transparent={true}
@@ -321,61 +377,41 @@ export default function AuthoritiesScreen() {
                 <X width={24} height={24} stroke="#666" />
               </TouchableOpacity>
             </View>
-            
             {selectedZone && (
               <>
-                <Text style={styles.modalZoneName}>{selectedZone.name}</Text>
-                <Text style={styles.modalZoneAddress}>{selectedZone.address}</Text>
-                
+                <Text style={styles.modalZoneName}>{selectedZone.enderecoFormatado}</Text>
+                <Text style={styles.modalZoneAddress}>Lat: {selectedZone.latitude}, Long: {selectedZone.longitude}</Text>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Status de Risco</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={updateStatus}
-                      onValueChange={(itemValue) => setUpdateStatus(itemValue)}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Risco Alto" value="Risco Alto" />
-                      <Picker.Item label="Em Observação" value="Em Observação" />
-                      <Picker.Item label="Resolvido" value="Resolvido" />
-                      <Picker.Item label="Baixo Risco" value="Baixo Risco" />
-                      <Picker.Item label="Não Avaliado" value="Não Avaliado" />
-                    </Picker>
-                  </View>
                 </View>
-                
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Observações</Text>
-                  <TextInput
-                    style={styles.textArea}
-                    placeholder="Informações sobre a inspeção e situação atual..."
-                    multiline={true}
-                    numberOfLines={4}
-                    value={updateNotes}
-                    onChangeText={setUpdateNotes}
-                  />
+                <Image
+                      source={{
+                        uri: getDirectImageLink(selectedZone.imagem),
+                      }}
+                      style={styles.panelImage}
+                      onError={(error) =>
+                        console.error("Erro ao carregar imagem:", error.nativeEvent.error)
+                      }
+                    />
                 </View>
-                
                 <TouchableOpacity 
-                  style={styles.submitButton} 
-                  onPress={handleUpdateStatus}
+                  style={styles.confirmButton} 
+                  onPress={() => handleConfirmarRisco(selectedZone.id)}
                   disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Atualizar Status</Text>
-                  )}
+                  <Text style={styles.confirmButtonText}>Validar como Área de Risco</Text>
                 </TouchableOpacity>
               </>
             )}
           </View>
         </View>
       </Modal>
-      
       <TouchableOpacity 
         style={styles.logoutButton}
-        onPress={() => setIsLoggedIn(false)}
+        onPress={async () => {
+          await AsyncStorage.removeItem('BearerToken');
+          setIsLoggedIn(false);
+        }}
       >
         <Text style={styles.logoutButtonText}>Sair</Text>
       </TouchableOpacity>
@@ -463,6 +499,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  confirmButton: {
+    backgroundColor: '#158ADD',
+    padding: 16,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   noteText: {
     fontSize: 12,
     color: '#999',
@@ -514,7 +562,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 80, // Adiciona espaço para o botão de logout
+    paddingBottom: 80,
   },
   zoneCard: {
     backgroundColor: '#fff',
@@ -633,5 +681,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 16,
+  },
+  panelImage: {
+    width: screenWidth * 0.8,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10, // Espaço entre a imagem e o texto
   },
 });

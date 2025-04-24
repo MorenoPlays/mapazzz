@@ -205,7 +205,7 @@ export default function TelaMapa() {
   };
   async function handleConfirmarRisco(ariaDeRisco: string) {
     try {
-      const res = await fetch("https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/analisar_aria", {
+      const res = await fetch("https://api-mapazzz.onrender.com/analisar_aria", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -226,7 +226,7 @@ export default function TelaMapa() {
   const fetchConfirmationCount = async (ariaDeRiscoId: string) => {
     try {
       const response = await fetch(
-        `https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/buscar_analise_total?ariaDeRisco=${ariaDeRiscoId}`,
+        `https://api-mapazzz.onrender.com/buscar_analise_total?ariaDeRisco=${ariaDeRiscoId}`,
         {
           method: "GET",
           headers: {
@@ -247,7 +247,7 @@ export default function TelaMapa() {
   const fetchDataAndCreateCircles = async () => {
     try {
       const response = await fetch(
-        "https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/buscar_aria_de_risco",
+        "https://api-mapazzz.onrender.com/buscar_aria_de_risco_validadas",
         {
           method: "GET",
           headers: {

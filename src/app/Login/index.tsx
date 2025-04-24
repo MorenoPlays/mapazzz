@@ -27,7 +27,7 @@ export default function LoginScreen() {
     setError(null);
     try
     {
-      const response = await fetch("https://bf40160dfbbd815a75c09a0c42a343c0.serveo.net/login", {
+      const response = await fetch("https://api-mapazzz.onrender.com/login", {
         method:"POST",
         headers:{
           'Content-Type':'application/json',
@@ -97,7 +97,7 @@ export default function LoginScreen() {
               Não tenho uma conta? <Text style={styles.signupLink}>Criar conta</Text>
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/(admin)")}>
+          <TouchableOpacity onPress={() => router.push("/screens/AuthoritiesScreen")}>
             <Text style={styles.signupText}>
               administrador? <Text style={styles.signupLink}>Entrar como adm</Text>
             </Text>
